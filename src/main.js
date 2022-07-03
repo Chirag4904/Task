@@ -2,6 +2,8 @@ import "./style.css";
 
 import * as THREE from "three";
 
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+
 // Canvas
 const canvas = document.querySelector("canvas.webgl");
 
@@ -9,16 +11,16 @@ const canvas = document.querySelector("canvas.webgl");
 const scene = new THREE.Scene();
 scene.background = new THREE.Color("black");
 
-const pointLight = new THREE.PointLight(0xffffff, 10.0);
-pointLight.position.x = 0;
-pointLight.position.y = 10;
-pointLight.position.z = -10;
-pointLight.castShadow = true;
-pointLight.shadow.mapSize.width = 512;
-pointLight.shadow.mapSize.height = 512;
-pointLight.shadow.camera.near = 0.5;
-pointLight.shadow.camera.far = 500;
-scene.add(pointLight);
+// const pointLight = new THREE.PointLight(0xffffff, 10.0);
+// pointLight.position.x = 0;
+// pointLight.position.y = 10;
+// pointLight.position.z = -10;
+// pointLight.castShadow = true;
+// pointLight.shadow.mapSize.width = 512;
+// pointLight.shadow.mapSize.height = 512;
+// pointLight.shadow.camera.near = 0.5;
+// pointLight.shadow.camera.far = 500;
+// scene.add(pointLight);
 
 const sqLength = 4;
 
@@ -29,40 +31,93 @@ const squareShape = new THREE.Shape()
 	.lineTo(sqLength, 0)
 	.lineTo(0, 0);
 
-const geometry = new THREE.ShapeGeometry(squareShape);
-geometry.center();
-geometry.rotateX(Math.PI * -0.5);
-const material = new THREE.MeshStandardMaterial({
+const clonegeo = new THREE.ShapeGeometry(squareShape);
+clonegeo.center();
+
+const clonemat = new THREE.MeshBasicMaterial({
 	color: 0x00ff00,
 	side: THREE.DoubleSide,
 });
-const mesh = new THREE.Mesh(geometry, material);
-mesh.receiveShadow = true;
 
-scene.add(mesh);
+const cloneMesh = new THREE.Mesh(clonegeo, clonemat);
 
-const patchGeometry = new THREE.PlaneGeometry(0.5, 0.5, 32, 32);
-const patchMaterial = new THREE.MeshStandardMaterial({
+const patchGeometry = new THREE.PlaneBufferGeometry(0.5, 0.5, 32, 32);
+
+const patchMaterial = new THREE.MeshBasicMaterial({
 	color: 0xffffff,
 	side: THREE.DoubleSide,
 	transparent: true,
-	opacity: 0,
+	opacity: 1,
 });
 const position = [
-	{ x: 0.4, y: 1.3, z: -2 },
-	{ x: 0.2, y: 0.5, z: -0.2 },
-	{ x: -0.4, y: 2, z: -0.8 },
+	{ x: 0.8, y: -0.6, z: -1 },
+	{ x: 0.1, y: 0.5, z: -0.2 },
+	{ x: -0.9, y: 0.1, z: -0.8 },
+	{ x: -0.5, y: -0.5, z: -0.8 },
 ];
-
-for (let i = 0; i < 3; i++) {
+const raycaster = new THREE.Raycaster();
+const rayDirection = new THREE.Vector3(0, 0, 1);
+const patchLength = 0.5;
+const holes = [];
+for (let i = 0; i < position.length; i++) {
 	const patchMesh = new THREE.Mesh(patchGeometry, patchMaterial);
-	patchMesh.position.set(position[i].x, position[i].y, position[i].z);
-	patchMesh.rotateX(Math.PI * -0.75);
-	patchMesh.castShadow = true;
 
+	patchMesh.position.set(position[i].x, position[i].y, position[i].z);
+
+	const rayOrigin = new THREE.Vector3(
+		position[i].x,
+		position[i].y,
+		position[i].z
+	);
+	raycaster.set(rayOrigin, rayDirection);
+	const intersect = raycaster.intersectObject(cloneMesh);
+
+	console.log(intersect);
+	const patchOrigin = {
+		x: 2 + intersect[0].point.x,
+		y: 2 + intersect[0].point.y,
+	};
+	const hole = new THREE.Path()
+		.moveTo(patchOrigin.x, patchOrigin.y)
+		.lineTo(patchOrigin.x, patchOrigin.y + patchLength / 2.0)
+		.lineTo(
+			patchOrigin.x - patchLength / 2.0,
+			patchOrigin.y + patchLength / 2.0
+		)
+		.lineTo(
+			patchOrigin.x - patchLength / 2.0,
+			patchOrigin.y - patchLength / 2.0
+		)
+		.lineTo(
+			patchOrigin.x + patchLength / 2.0,
+			patchOrigin.y - patchLength / 2.0
+		)
+		.lineTo(
+			patchOrigin.x + patchLength / 2.0,
+			patchOrigin.y + patchLength / 2.0
+		)
+		.lineTo(patchOrigin.x, patchOrigin.y + patchLength / 2.0);
+	holes.push(hole);
+	patchMesh.rotateX(Math.PI * 0.5);
 	scene.add(patchMesh);
 }
 
+for (let i = 0; i < holes.length; i++) {
+	squareShape.holes.push(holes[i]);
+}
+//raycaster
+
+const geometry = new THREE.ShapeGeometry(squareShape);
+geometry.center();
+geometry.rotateX(Math.PI * 0.5);
+const material = new THREE.MeshBasicMaterial({
+	color: 0x00ff00,
+	side: THREE.DoubleSide,
+});
+
+const mesh = new THREE.Mesh(geometry, material);
+
+scene.add(mesh);
 /**
  * Sizes
  */
@@ -116,10 +171,11 @@ renderer.shadowMap.enabled = true;
  */
 
 const clock = new THREE.Clock();
-
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true;
 const tick = () => {
 	const elapsedTime = clock.getElapsedTime();
-
+	controls.update();
 	// Render
 	renderer.render(scene, camera);
 
