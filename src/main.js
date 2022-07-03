@@ -99,7 +99,6 @@ for (let i = 0; i < position.length; i++) {
 		.lineTo(patchOrigin.x, patchOrigin.y + patchLength / 2.0);
 	holes.push(hole);
 	patchMesh.rotateX(Math.PI * 0.5);
-	scene.add(patchMesh);
 }
 
 for (let i = 0; i < holes.length; i++) {
